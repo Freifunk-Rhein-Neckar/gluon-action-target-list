@@ -9,7 +9,7 @@ DENYLIST="${DENYLIST:-}"
 BROKEN="${BROKEN:0}"
 
 # Get List of available Targets
-AVAILABLE_TARGETS_NEWLINE="$(make --no-print-directory -C "$GLUON_PATH" list-targets "BROKEN=${BROKEN}" "GLUON_SITEDIR=docs/site-example")"
+AVAILABLE_TARGETS_NEWLINE="$(make --no-print-directory -C "$GLUON_PATH" list-targets "BROKEN=${BROKEN}" "GLUON_SITEDIR=${GLUON_SITEDIR}")"
 
 # Format Allow- and Denylist
 TARGET_ALLOWLIST_NEWLINE="$(echo "$ALLOWLIST" | tr ' ' '\n')"

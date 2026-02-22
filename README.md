@@ -13,6 +13,12 @@ in a CI.
 ### gluon-path
 Path to a checked-out Gluon repository.
 
+### site-path
+Path to Gluon site-directory
+
+#### Default
+`docs/site-example`
+
 ### allowlist
 Space-separated list of targets which are allowed in the output list.
 

@@ -5,6 +5,9 @@ inputs:
   gluon-path:
     description: 'Path to Gluon repository'
     required: true
+  site-path:
+    description: 'Path to Gluon site-directory'
+    default: 'docs/site-example'
   allowlist:
     description: 'Space-separated list of targets to be returned if available'
     required: false
@@ -30,6 +33,7 @@ runs:
         ALLOWLIST: ${{ inputs.allowlist }}
         DENYLIST: ${{ inputs.denylist }}
         BROKEN: ${{ inputs.broken }}
+        GLUON_SITEDIR: ${{ inputs.site-path }}
     - run: echo "targets=$(cat /tmp/targets.json)" >> "$GITHUB_OUTPUT"
       shell: bash
       id: save-step
