@@ -7,13 +7,13 @@ on: [push, pull_request]
 jobs:
   lint-yaml:
     name: "YAML"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       YAML_FILES: |
         .github/workflows/lint.yml
         action.yml
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y yamllint shellcheck
       - name: Validate YAML Files
@@ -21,11 +21,11 @@ jobs:
 
   shellcheck:
     name: "Shell Scripts"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       SHELL_FILES: entrypoint.sh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Validate Shell Scripts
