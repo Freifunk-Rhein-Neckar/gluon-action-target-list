@@ -6,7 +6,14 @@ GLUON_PATH="$1"
 
 ALLOWLIST="${ALLOWLIST:-}"
 DENYLIST="${DENYLIST:-}"
-BROKEN="${BROKEN:0}"
+
+if [ "$BROKEN" -eq 1 ]; then
+    BROKEN=1
+else
+    # Mapping is neccesary so that it works with and without the following patch:
+    # https://github.com/freifunk-gluon/gluon/pull/2934
+    BROKEN=""
+fi
 
 # Get List of available Targets
 AVAILABLE_TARGETS_NEWLINE="$(make --no-print-directory -C "$GLUON_PATH" list-targets "BROKEN=${BROKEN}" "GLUON_SITEDIR=${GLUON_SITEDIR}")"
