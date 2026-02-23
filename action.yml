@@ -2,9 +2,18 @@
 name: 'Get list of available targets for Gluon release'
 description: 'Returns targets available in a specified Gluon release'
 inputs:
+  container-image:
+    description: 'URL to the Container registry Image to use'
+    default: 'ghcr.io/freifunk-gluon/gluon-build'
+  container-version:
+    description: 'Container version to use'
+    default: 'main'
   gluon-path:
     description: 'Path to Gluon repository'
     required: true
+  site-path:
+    description: 'Path to Gluon site-directory'
+    default: ''
   allowlist:
     description: 'Space-separated list of targets to be returned if available'
     required: false
@@ -15,6 +24,9 @@ inputs:
   broken:
     description: 'Determines if BROKEN targets should be returned (Default: 0)'
     default: 0
+  deprecated:
+    description: 'Determines if deprecated devices should be built'
+    default: 0
 outputs:
   targets:
     description: 'JSON list containing all valid targets'
@@ -22,14 +34,57 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - run: >
-        bash ${{ github.action_path }}/entrypoint.sh
-        ${{ inputs.gluon-path }} > /tmp/targets.json
-      shell: bash
+    - run: |
+        docker build \
+          --build-arg CONTAINER \
+          --build-arg VERSION \
+          -t sdk \
+          $GITHUB_ACTION_PATH
       env:
-        ALLOWLIST: ${{ inputs.allowlist }}
-        DENYLIST: ${{ inputs.denylist }}
-        BROKEN: ${{ inputs.broken }}
+        VERSION: ${{ inputs.container-version }}
+      shell: bash
+      if: needs.build-meta.outputs.container-image == ''
+    - run: |
+        docker build \
+          --build-arg CONTAINER \
+          --build-arg VERSION \
+          -t sdk \
+          $GITHUB_ACTION_PATH
+      env:
+        CONTAINER: ${{ inputs.container-image }}
+        VERSION: ${{ inputs.container-version }}
+      shell: bash
+      if: needs.build-meta.outputs.container-image != ''
+      # yamllint disable rule:line-length
+    - run: |
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          --env ACTION_GLUON_BROKEN \
+          --env ACTION_GLUON_DEPRECATED \
+          --env ACTION_SITE_PATH \
+          ${ACTION_SITE_PATH:+--volume "$GITHUB_WORKSPACE/$ACTION_SITE_PATH:/gluon/site-repo"} \
+          --volume "$GITHUB_WORKSPACE/$ACTION_GLUON_PATH:/gluon/gluon-repo" \
+          sdk > /tmp/targets.txt
+      # yamllint enable rule:line-length
+      env:
+        ACTION_GLUON_BROKEN: ${{ inputs.broken }}
+        ACTION_GLUON_DEPRECATED: ${{ inputs.deprecated }}
+        ACTION_GLUON_PATH: ${{ inputs.gluon-path }}
+        ACTION_SITE_PATH: ${{ inputs.site-path }}
+      shell: bash
+    - name: Export AVAILABLE_TARGETS_NEWLINE to GITHUB_ENV
+      run: |
+        {
+          echo "AVAILABLE_TARGETS_NEWLINE<<EOF"
+          cat /tmp/targets.txt
+          echo "EOF"
+        } >> "$GITHUB_ENV"
+      shell: bash
+    - run: ${{ github.action_path }}/apply_filter.sh > /tmp/targets.json
+      env:
+        ACTION_TARGET_ALLOWLIST: ${{ inputs.allowlist }}
+        ACTION_TARGET_DENYLIST: ${{ inputs.denylist }}
+      shell: bash
     - run: echo "targets=$(cat /tmp/targets.json)" >> "$GITHUB_OUTPUT"
       shell: bash
       id: save-step

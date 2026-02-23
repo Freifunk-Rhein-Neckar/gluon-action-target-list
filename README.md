@@ -10,8 +10,28 @@ in a CI.
 
 ## Inputs
 
+### container-image
+#### Description
+URL to the Container registry Image to use
+
+#### Default
+ghcr.io/freifunk-gluon/gluon-build
+
+### container-version
+#### Description
+Container version to use
+
+#### Default
+main
+
 ### gluon-path
 Path to a checked-out Gluon repository.
+
+### site-path
+Path to Gluon site-directory
+
+#### Default
+`docs/site-example`
 
 ### allowlist
 Space-separated list of targets which are allowed in the output list.
@@ -26,6 +46,8 @@ Any target present in this list won't occur in the output list.
 ### broken
 Whether or not to include targets marked as `BROKEN` in the output list.
 
+### deprecated
+Determines if deprecated devices should be built
 
 ## Outputs
 

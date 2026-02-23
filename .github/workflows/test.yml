@@ -1,0 +1,176 @@
+---
+name: Test
+
+# yamllint disable-line rule:truthy
+on: [push, pull_request]
+
+# yamllint disable rule:line-length
+jobs:
+  test-target-variants:
+    name: Test ${{ matrix.variant.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: "main + broken=true"
+            gluon_ref: "main"
+            broken: 1
+            expected_targets: '["ath79-generic","ramips-mt7621","x86-64","bcm27xx-bcm2711"]'
+            forbidden_targets: '["ar71xx-generic"]'
+            min_target_count: "20"
+
+          - name: "main + broken=false"
+            gluon_ref: "main"
+            broken: 0
+            expected_targets: '["ath79-generic"]'
+            forbidden_targets: '["ar71xx-generic","bcm27xx-bcm2711"]'
+            min_target_count: "20"
+
+          - name: "v2025.1 + broken=true + deny x86-generic"
+            gluon_ref: "v2025.1"
+            broken: 1
+            expected_targets: '["ath79-generic","ramips-mt7621","x86-64","bcm27xx-bcm2711"]'
+            forbidden_targets: '["x86-generic"]'
+            min_target_count: "32"
+            max_target_count: "32"
+            denylist: 'x86-generic'
+
+          - name: "v2025.1 + broken=false + allow only x86-generic and ath79-generic"
+            gluon_ref: "v2025.1"
+            broken: 0
+            expected_targets: '["ath79-generic","x86-generic"]'
+            allowlist: 'ath79-generic x86-generic'
+            min_target_count: "2"
+            max_target_count: "2"
+
+          - name: "v2021.1.2 + broken=true, deprecated=upgrade"
+            gluon_ref: "v2021.1.2"
+            broken: 1
+            expected_targets: '["ar71xx-generic","brcm2708-bcm2710","ar71xx-mikrotik","ar71xx-tiny"]'
+            forbidden_targets: '[]'
+            min_target_count: "24"
+            max_target_count: "24"
+            deprecated: "upgrade"
+
+          - name: "v2021.1.2 + broken=true"
+            gluon_ref: "v2021.1.2"
+            broken: 1
+            expected_targets: '["ar71xx-generic","brcm2708-bcm2710","ar71xx-mikrotik"]'
+            forbidden_targets: '[]'
+            min_target_count: "23"
+            max_target_count: "23"
+
+          - name: "v2021.1.2 + broken=false"
+            gluon_ref: "v2021.1.2"
+            broken: 0
+            expected_targets: '["ar71xx-generic"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik","ar71xx-tiny"]'
+            min_target_count: "20"
+            max_target_count: "20"
+
+          - name: "v2022.1.4 + broken=false"
+            gluon_ref: "v2022.1.4"
+            broken: 0
+            expected_targets: '["ath79-generic","mpc85xx-p1020","x86-geode"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik"]'
+            min_target_count: "23"
+            max_target_count: "23"
+
+          - name: "v2022.1.4 + broken=false,deprecated=upgrade"
+            gluon_ref: "v2022.1.4"
+            broken: 0
+            expected_targets: '["ath79-generic","mpc85xx-p1020","x86-geode"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik"]'
+            min_target_count: "23"
+            max_target_count: "23"
+            deprecated: "upgrade"
+
+          - name: "v2021.1.2 + broken=false + site-ffrn@v1.6.5-20221011"
+            gluon_ref: "v2021.1.2"
+            broken: 0
+            expected_targets: '["ar71xx-generic","ar71xx-tiny"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik"]'
+            min_target_count: "21"
+            max_target_count: "21"
+            site_repo: "Freifunk-Rhein-Neckar/site-ffrn"
+            site_ref: "v1.6.5-20221011"
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v6
+        with:
+          path: action
+
+      - name: Checkout gluon (${{ matrix.variant.gluon_ref }})
+        uses: actions/checkout@v6
+        with:
+          repository: freifunk-gluon/gluon
+          ref: ${{ matrix.variant.gluon_ref }}
+          path: gluon
+
+      - name: Checkout site (${{ matrix.variant.site_repo }}@${{ matrix.variant.site_ref }})
+        uses: actions/checkout@v6
+        if: matrix.variant.site_repo != ''
+        with:
+          repository: ${{ matrix.variant.site_repo }}
+          ref: ${{ matrix.variant.site_ref }}
+          path: site
+
+      - name: Run get-targets action without defined site
+        id: get-targets
+        if: matrix.variant.site_repo == ''
+        uses: ./action
+        with:
+          gluon-path: gluon
+          broken: ${{ matrix.variant.broken }}
+          denylist: ${{ matrix.variant.denylist }}
+          allowlist: ${{ matrix.variant.allowlist }}
+          deprecated: ${{ matrix.variant.deprecated }}
+
+      - name: Run get-targets action with custom site
+        id: get-targets2
+        if: matrix.variant.site_repo != ''
+        uses: ./action
+        with:
+          gluon-path: gluon
+          site-path: site
+          broken: ${{ matrix.variant.broken }}
+          deprecated: ${{ matrix.variant.deprecated }}
+
+      - name: Validate result for ${{ matrix.variant.name }}
+        env:
+          TARGETS: ${{ steps.get-targets.outputs.targets || steps.get-targets2.outputs.targets }}
+          EXPECTED_TARGETS: ${{ matrix.variant.expected_targets }}
+          FORBIDDEN_TARGETS: ${{ matrix.variant.forbidden_targets }}
+          MIN_TARGET_COUNT: ${{ matrix.variant.min_target_count }}
+          MAX_TARGET_COUNT: ${{ matrix.variant.max_target_count }}
+
+        run: |
+          set -euo pipefail
+
+          echo "Variant: ${{ matrix.variant.name }}"
+          echo "Targets: $TARGETS"
+
+          echo "Checking for Valid JSON array"
+          echo "$TARGETS" | jq -e 'type == "array"' > /dev/null
+
+          echo "Checking at least $MIN_TARGET_COUNT targets are present"
+          echo "$TARGETS" | jq -e --argjson min "$MIN_TARGET_COUNT" 'length >= $min' > /dev/null
+
+          if [[ -n "${MAX_TARGET_COUNT:-}" ]]; then
+            echo "Checking at most $MAX_TARGET_COUNT targets are present"
+            echo "$TARGETS" | jq -e --argjson max "$MAX_TARGET_COUNT" 'length <= $max' > /dev/null
+          fi
+
+          echo "Checking it contains all expected targets"
+          echo "$TARGETS" | jq -e --argjson expected "$EXPECTED_TARGETS" '
+            ($expected - .) | length == 0
+          ' > /dev/null
+
+          if [[ -n "${FORBIDDEN_TARGETS:-}" ]]; then
+            echo "Checking it contains no forbidden targets"
+            echo "$TARGETS" | jq -e --argjson forbidden "$FORBIDDEN_TARGETS" '
+              ([ .[] | select(. as $t | $forbidden | index($t)) ] | length) == 0
+            ' > /dev/null
+          fi
