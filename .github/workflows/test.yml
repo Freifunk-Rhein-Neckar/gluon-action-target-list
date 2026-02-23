@@ -1,7 +1,10 @@
+---
 name: Test
 
+# yamllint disable-line rule:truthy
 on: [push, pull_request]
 
+# yamllint disable rule:line-length
 jobs:
   test-target-variants:
     name: Test ${{ matrix.variant.name }}
@@ -41,6 +44,15 @@ jobs:
             min_target_count: "2"
             max_target_count: "2"
 
+          - name: "v2021.1.2 + broken=true, deprecated=upgrade"
+            gluon_ref: "v2021.1.2"
+            broken: 1
+            expected_targets: '["ar71xx-generic","brcm2708-bcm2710","ar71xx-mikrotik","ar71xx-tiny"]'
+            forbidden_targets: '[]'
+            min_target_count: "24"
+            max_target_count: "24"
+            deprecated: "upgrade"
+
           - name: "v2021.1.2 + broken=true"
             gluon_ref: "v2021.1.2"
             broken: 1
@@ -56,6 +68,23 @@ jobs:
             forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik","ar71xx-tiny"]'
             min_target_count: "20"
             max_target_count: "20"
+
+          - name: "v2022.1.4 + broken=false"
+            gluon_ref: "v2022.1.4"
+            broken: 0
+            expected_targets: '["ath79-generic","mpc85xx-p1020","x86-geode"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik"]'
+            min_target_count: "23"
+            max_target_count: "23"
+
+          - name: "v2022.1.4 + broken=false,deprecated=upgrade"
+            gluon_ref: "v2022.1.4"
+            broken: 0
+            expected_targets: '["ath79-generic","mpc85xx-p1020","x86-geode"]'
+            forbidden_targets: '["brcm2708-bcm2710","ar71xx-mikrotik"]'
+            min_target_count: "23"
+            max_target_count: "23"
+            deprecated: "upgrade"
 
           - name: "v2021.1.2 + broken=false + site-ffrn@v1.6.5-20221011"
             gluon_ref: "v2021.1.2"
@@ -97,6 +126,7 @@ jobs:
           broken: ${{ matrix.variant.broken }}
           denylist: ${{ matrix.variant.denylist }}
           allowlist: ${{ matrix.variant.allowlist }}
+          deprecated: ${{ matrix.variant.deprecated }}
 
       - name: Run get-targets action with custom site
         id: get-targets2
@@ -104,8 +134,9 @@ jobs:
         uses: ./action
         with:
           gluon-path: gluon
-          site-path: ../site
+          site-path: site
           broken: ${{ matrix.variant.broken }}
+          deprecated: ${{ matrix.variant.deprecated }}
 
       - name: Validate result for ${{ matrix.variant.name }}
         env:
@@ -129,7 +160,7 @@ jobs:
 
           if [[ -n "${MAX_TARGET_COUNT:-}" ]]; then
             echo "Checking at most $MAX_TARGET_COUNT targets are present"
-            echo "$TARGETS" | jq -e --argjson max "$MIN_TARGET_COUNT" 'length <= $max' > /dev/null
+            echo "$TARGETS" | jq -e --argjson max "$MAX_TARGET_COUNT" 'length <= $max' > /dev/null
           fi
 
           echo "Checking it contains all expected targets"

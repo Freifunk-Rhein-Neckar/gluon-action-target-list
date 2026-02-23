@@ -1,41 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euxo pipefail
 
-GLUON_PATH="$1"
-
-ALLOWLIST="${ALLOWLIST:-}"
-DENYLIST="${DENYLIST:-}"
-
-if [ "$BROKEN" -eq 1 ]; then
-    BROKEN=1
+if [ "$ACTION_GLUON_BROKEN" -eq 1 ]; then
+    ACTION_GLUON_BROKEN=1
 else
     # Mapping is neccesary so that it works with and without the following patch:
     # https://github.com/freifunk-gluon/gluon/pull/2934
-    BROKEN=""
+    ACTION_GLUON_BROKEN=""
 fi
 
+# use docs site if no site repo is given, otherwise use the site repo
+if [ -z "$ACTION_SITE_PATH" ]; then
+    ACTION_SITE_PATH="/gluon/gluon-repo/docs/site-example"
+else
+    ACTION_SITE_PATH="/gluon/site-repo"
+fi
+
+GLUON_MAKE_ARGS=""
+[ -n "${ACTION_GLUON_BROKEN:-}" ] && GLUON_MAKE_ARGS="${GLUON_MAKE_ARGS} BROKEN=${ACTION_GLUON_BROKEN}"
+[ -n "${ACTION_GLUON_DEPRECATED:-}" ] && GLUON_MAKE_ARGS="${GLUON_MAKE_ARGS} GLUON_DEPRECATED=${ACTION_GLUON_DEPRECATED}"
+
+ACTION_MAKE_TARGET="list-targets"
+
+# shellcheck disable=SC2086
 # Get List of available Targets
-AVAILABLE_TARGETS_NEWLINE="$(make --no-print-directory -C "$GLUON_PATH" list-targets "BROKEN=${BROKEN}" "GLUON_SITEDIR=${GLUON_SITEDIR}")"
-
-# Format Allow- and Denylist
-TARGET_ALLOWLIST_NEWLINE="$(echo "$ALLOWLIST" | tr ' ' '\n')"
-TARGET_DENYLIST_NEWLINE="$(echo "$DENYLIST" | tr ' ' '\n')"
-
-# Return all available targets if no allowlist is set
-OUTPUT_TARGETS="${AVAILABLE_TARGETS_NEWLINE}"
-
-if [ -n "$ALLOWLIST" ]; then
-    # Only return words present in both lists
-    OUTPUT_TARGETS="$(echo -e "$AVAILABLE_TARGETS_NEWLINE\n$TARGET_ALLOWLIST_NEWLINE" | sort | uniq -d)"
-fi
-
-if [ -n "$DENYLIST" ]; then
-    # Remove words present in denylist
-    OUTPUT_TARGETS="$(echo -e "$OUTPUT_TARGETS\n$TARGET_DENYLIST_NEWLINE" | sort | uniq -u)"
-fi
-
-# Convert to JSON
-OUTPUT_JSON="$(echo "$OUTPUT_TARGETS" | jq  --raw-input .  | jq --slurp . | jq -c .)"
-
-echo "$OUTPUT_JSON"
+make --no-print-directory -C /gluon/gluon-repo $ACTION_MAKE_TARGET $GLUON_MAKE_ARGS "GLUON_SITEDIR=${ACTION_SITE_PATH}"
