@@ -58,7 +58,6 @@ runs:
       # yamllint disable rule:line-length
     - run: |
         docker run --rm \
-          --user "$(id -u):$(id -g)" \
           --env ACTION_GLUON_BROKEN \
           --env ACTION_GLUON_DEPRECATED \
           --env ACTION_SITE_PATH \
